@@ -15,7 +15,7 @@ private struct HighlightState: Component, Equatable {
 
 enum SongSphereEntity {
 
-    private static let baseRadius: Float = 0.04
+    private static let baseRadius: Float = 0.06
     private static let selectionBaseRadius: Float = 0.1
 
     static func make(for song: SongData) -> ModelEntity {

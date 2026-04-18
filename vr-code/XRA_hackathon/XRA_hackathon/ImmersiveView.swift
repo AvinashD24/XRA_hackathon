@@ -31,6 +31,7 @@ struct ImmersiveView: View {
 
     var body: some View {
         RealityView { content, attachments in
+            rootEntity.position = SIMD3<Float>(0, 1.4, -1.5)
             content.add(rootEntity)
             content.add(leftWristAnchor)
             content.add(rightWristAnchor)
@@ -38,11 +39,22 @@ struct ImmersiveView: View {
             content.add(confirmAnchor)
             content.add(resetAnchor)
 
+            print("ImmersiveView: creating \(songStore.songs.count) sphere entities")
             for song in songStore.songs {
                 let entity = SongSphereEntity.make(for: song)
                 rootEntity.addChild(entity)
                 songEntities[song.id] = entity
             }
+            print("ImmersiveView: rootEntity has \(rootEntity.children.count) children")
+
+            // Debug marker: bright red cube 1m in front of user, 1.4m up.
+            // If you see this but no spheres, the scene is rendering.
+            let debugMesh = MeshResource.generateBox(size: 0.15)
+            let debugMat = UnlitMaterial(color: .red)
+            let debugEntity = ModelEntity(mesh: debugMesh, materials: [debugMat])
+            debugEntity.position = SIMD3<Float>(0, 1.4, -1.0)
+            content.add(debugEntity)
+            print("ImmersiveView: added debug marker at (0, 1.4, -1.0)")
 
             let sel = SongSphereEntity.makeSelectionSphere()
             sel.isEnabled = false
