@@ -70,5 +70,5 @@ def fetch_audio_features(token, track_ids):
 with open("data/track_ids.json", "r") as f:
     playlist_track_ids = json.load(f)
 data_features = fetch_audio_features(access_token, playlist_track_ids)
-data_features.to_csv("../data/audio_features.csv", index=True)
+data_features.to_csv("data/audio_features.csv", index=True)
 print(data_features.head())

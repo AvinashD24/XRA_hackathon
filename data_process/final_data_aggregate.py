@@ -49,4 +49,4 @@ meta_df = pd.DataFrame.from_dict(meta, orient="index")
 meta_df.index.name = "track_id"
 df_final = df.set_index("track_id").join(meta_df)
 df_final = df_final.reset_index()
-df_final.to_csv("../data/final_data2.csv", index=False)
+df_final.to_csv("data/final_data2.csv", index=False)

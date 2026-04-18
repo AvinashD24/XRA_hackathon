@@ -41,7 +41,7 @@ def main():
     parser.add_argument(
         "--output",
         type=str,
-        default="../data/track_ids.json",
+        default="data/track_ids.json",
         help="Output JSON file path"
     )
 
