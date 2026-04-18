@@ -1,6 +1,6 @@
 import requests
 import pandas as pd
-from spotify_api_auth import access_token
+from data_process.spotify_api_auth import access_token
 
 def fetch_track_metadata(token, track_ids):
     headers = {"Authorization": f"Bearer {token}"}
@@ -29,6 +29,7 @@ def fetch_track_metadata(token, track_ids):
             results[track_id] = {
                 "title": t["name"],
                 "artists": artists,
+                "isrc": t['external_ids']["isrc"] if "isrc" in t['external_ids'] else None,
                 "preview_url": t["preview_url"],
                 "album_image": (
                     t["album"]["images"][0]["url"]
@@ -48,4 +49,4 @@ meta_df = pd.DataFrame.from_dict(meta, orient="index")
 meta_df.index.name = "track_id"
 df_final = df.set_index("track_id").join(meta_df)
 df_final = df_final.reset_index()
-df_final.to_csv("data/final_data.csv", index=False)
+df_final.to_csv("../data/final_data2.csv", index=False)

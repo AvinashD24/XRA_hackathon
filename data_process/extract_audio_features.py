@@ -5,7 +5,7 @@ import pandas as pd
 import json
 import requests
 
-from get_song_ids import access_token
+from data_process.spotify_api_auth import access_token
 
 def fetch_batch(track_ids):
     conn = http.client.HTTPSConnection("api.reccobeats.com")
@@ -70,5 +70,5 @@ def fetch_audio_features(token, track_ids):
 with open("data/track_ids.json", "r") as f:
     playlist_track_ids = json.load(f)
 data_features = fetch_audio_features(access_token, playlist_track_ids)
-data_features.to_csv("data/audio_features.csv", index=True)
+data_features.to_csv("../data/audio_features.csv", index=True)
 print(data_features.head())
