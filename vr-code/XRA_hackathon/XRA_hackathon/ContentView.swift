@@ -6,46 +6,45 @@
 //
 
 import SwiftUI
-import RealityKit
-import RealityKitContent
 
 struct ContentView: View {
 
-    @State var enlarge = false
+    @Environment(SongStore.self) private var songStore
+    @Environment(\.openImmersiveSpace) private var openImmersive
+    @Environment(\.dismissImmersiveSpace) private var dismissImmersive
+
+    @State private var isImmersiveOpen = false
 
     var body: some View {
-        VStack {
-            RealityView { content in
-                // Add the initial RealityKit content
-                if let scene = try? await Entity(named: "Scene", in: realityKitContentBundle) {
-                    content.add(scene)
-                }
-            } update: { content in
-                // Update the RealityKit content when SwiftUI state changes
-                if let scene = content.entities.first {
-                    let uniformScale: Float = enlarge ? 1.4 : 1.0
-                    scene.transform.scale = [uniformScale, uniformScale, uniformScale]
-                }
-            }
-            .gesture(TapGesture().targetedToAnyEntity().onEnded { _ in
-                enlarge.toggle()
-            })
+        VStack(spacing: 24) {
+            Text("Song Space")
+                .font(.largeTitle.bold())
 
-            VStack {
-                Button {
-                    enlarge.toggle()
-                } label: {
-                    Text(enlarge ? "Reduce RealityView Content" : "Enlarge RealityView Content")
+            Text("\(songStore.songs.count) songs loaded")
+                .foregroundStyle(.secondary)
+
+            Button(isImmersiveOpen ? "Exit Song Space" : "Enter Song Space") {
+                Task {
+                    if isImmersiveOpen {
+                        await dismissImmersive()
+                        isImmersiveOpen = false
+                    } else {
+                        if case .opened = await openImmersive(id: "SongGraph") {
+                            isImmersiveOpen = true
+                        }
+                    }
                 }
-                .animation(.none, value: 0)
-                .fontWeight(.semibold)
             }
-            .padding()
+            .font(.title3.weight(.semibold))
+            .padding(.horizontal, 32)
+            .padding(.vertical, 12)
             .glassBackgroundEffect()
         }
+        .padding(40)
     }
 }
 
-#Preview(windowStyle: .volumetric) {
+#Preview(windowStyle: .plain) {
     ContentView()
+        .environment(SongStore())
 }

@@ -2,10 +2,14 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSHandsTrackingUsageDescription</key>
+	<string>XRA Hackathon uses hand tracking to let you pinch and grab songs to build playlists in 3D space.</string>
+	<key>NSWorldSensingUsageDescription</key>
+	<string>XRA Hackathon places song spheres relative to your environment.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationPreferredDefaultSceneSessionRole</key>
-		<string>UIWindowSceneSessionRoleVolumetricApplication</string>
+		<string>UIWindowSceneSessionRoleApplication</string>
 		<key>UIApplicationSupportsMultipleScenes</key>
 		<true/>
 		<key>UISceneConfigurations</key>
