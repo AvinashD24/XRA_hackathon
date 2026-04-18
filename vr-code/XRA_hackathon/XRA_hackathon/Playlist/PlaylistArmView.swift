@@ -89,6 +89,7 @@ struct PlaylistArmView: View {
                                 .font(.caption2)
                         }
                         .buttonBorderShape(.circle)
+                        .disabled(song.playbackURL == nil)
 
                         VStack(alignment: .leading, spacing: 1) {
                             Text(song.title)

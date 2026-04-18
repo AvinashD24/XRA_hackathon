@@ -8,6 +8,11 @@ import RealityKit
 import SwiftUI
 import simd
 
+private struct HighlightState: Component, Equatable {
+    var highlighted: Bool
+    var playing: Bool
+}
+
 enum SongSphereEntity {
 
     private static let baseRadius: Float = 0.04
@@ -21,6 +26,7 @@ enum SongSphereEntity {
         entity.position = song.position
         entity.components.set(InputTargetComponent(allowedInputTypes: .all))
         entity.components.set(HoverEffectComponent())
+        entity.components.set(HighlightState(highlighted: false, playing: false))
         entity.generateCollisionShapes(recursive: false)
         return entity
     }
@@ -36,6 +42,10 @@ enum SongSphereEntity {
     }
 
     static func updateHighlight(entity: ModelEntity, song: SongData, highlighted: Bool, playing: Bool) {
+        let next = HighlightState(highlighted: highlighted, playing: playing)
+        if entity.components[HighlightState.self] == next { return }
+        entity.components.set(next)
+
         let tint: UIColor
         if playing {
             tint = UIColor.white
@@ -55,10 +65,9 @@ enum SongSphereEntity {
     }
 
     private static func color(for position: SIMD3<Float>) -> UIColor {
-        // Normalize [-1.5, 1.5] → [0, 1] for each axis
-        let hue = CGFloat(max(0, min(1, (position.x + 1.5) / 3.0)))
-        let sat = CGFloat(max(0.5, min(1, (position.y + 1.5) / 3.0)))
-        let bri = CGFloat(max(0.6, min(1, (position.z + 1.5) / 3.0)))
+        let hue = CGFloat(max(0, min(1, (position.x + 2.0) / 4.0)))
+        let sat = CGFloat(max(0.5, min(1, (position.y + 2.0) / 4.0)))
+        let bri = CGFloat(max(0.6, min(1, (position.z + 2.0) / 4.0)))
         return UIColor(hue: hue, saturation: sat, brightness: bri, alpha: 1.0)
     }
 }

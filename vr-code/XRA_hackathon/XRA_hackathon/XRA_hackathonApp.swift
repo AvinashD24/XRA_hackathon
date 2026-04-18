@@ -23,7 +23,6 @@ struct XRA_hackathonApp: App {
                 .environment(audioService)
                 .environment(handTracking)
                 .task {
-                    songStore.loadSample()
                     handTracking.updateSongList(songStore.songs)
                 }
         }

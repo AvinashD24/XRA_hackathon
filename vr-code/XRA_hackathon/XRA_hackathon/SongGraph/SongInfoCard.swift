@@ -43,10 +43,11 @@ struct SongInfoCard: View {
                     Button {
                         audioService.toggle(song: song)
                     } label: {
-                        Label(isPlayingThis ? "Stop" : "Play",
+                        Label(isPlayingThis ? "Stop" : (song.playbackURL == nil ? "No preview" : "Play"),
                               systemImage: isPlayingThis ? "stop.fill" : "play.fill")
                     }
                     .buttonStyle(.borderedProminent)
+                    .disabled(song.playbackURL == nil)
 
                     Menu {
                         Button("New playlist") {
