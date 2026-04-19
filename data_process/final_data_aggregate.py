@@ -2,12 +2,12 @@ import requests
 import pandas as pd
 import time
 from data_process.spotify_api_auth import access_token
-from data_process.itunes_preview_resolver import resolve_preview_url
+from data_process.itunes_preview_resolver import resolve_preview_url, load_persistent_cache
 
 
 def fetch_track_metadata(token, track_ids):
+    """Fetch track metadata from Spotify"""
     headers = {"Authorization": f"Bearer {token}"}
-
     results = {}
 
     for i in range(0, len(track_ids), 50):
@@ -28,19 +28,19 @@ def fetch_track_metadata(token, track_ids):
             track_id = t["id"]
             artists = ", ".join([a["name"] for a in t["artists"]])
             preview_url = t["preview_url"]
-            isrc = t['external_ids'].get("isrc")
-
+            
             # Try iTunes fallback if Spotify preview is None
-            if not preview_url and isrc:
+            if not preview_url:
                 print(f"  → Spotify preview missing for {t['name']}, trying iTunes...")
-                preview_url, source = resolve_preview_url(isrc, artists, t["name"])
+                preview_url = resolve_preview_url(artists, t["name"])
                 if preview_url:
-                    print(f"    ✔ Found via {source}")
+                    print(f"    ✔ Found on iTunes")
+                else:
+                    print(f"    ✗ No preview found")
             
             results[track_id] = {
                 "title": t["name"],
                 "artists": artists,
-                "isrc": isrc,
                 "preview_url": preview_url,
                 "album_image": (
                     t["album"]["images"][0]["url"]
@@ -48,13 +48,16 @@ def fetch_track_metadata(token, track_ids):
                 )
             }
 
-            time.sleep(0.1)  # Rate limiting for iTunes API
+            time.sleep(0.05)  # Small delay between queries
 
     return results
 
 df = pd.read_csv("data/reduced_dim.csv")
 
 track_ids = df["track_id"].tolist()
+
+# Load iTunes cache before processing
+load_persistent_cache()
 
 meta = fetch_track_metadata(access_token, track_ids)
 
@@ -63,3 +66,5 @@ meta_df.index.name = "track_id"
 df_final = df.set_index("track_id").join(meta_df)
 df_final = df_final.reset_index()
 df_final.to_csv("data/final_data2.csv", index=False)
+
+print(f"\n✔ Results saved to data/final_data2.csv")
