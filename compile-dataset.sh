@@ -1,1 +1,2 @@
+# ./compile-dataset 34Osh0el1mRoK5KBZ5rIcm
 python3 -m data_process.get_song_ids --playlist_id "$1" && python3 -m data_process.extract_audio_features && python3 -m data_process.dimension_reduction && python3 -m data_process.final_data_aggregate

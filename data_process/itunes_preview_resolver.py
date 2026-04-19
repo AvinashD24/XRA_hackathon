@@ -44,18 +44,18 @@ def get_itunes_preview_by_artist_song(artist, song_name, max_retries=3):
     """
     Search iTunes by artist + song name with exponential backoff rate limit handling
     Checks cache first before querying API.
-    
+
     Returns: preview_url or None
     """
     cache_key = get_cache_key(artist, song_name)
-    
+
     # Check cache first
     if cache_key in _itunes_cache:
         cached_url = _itunes_cache[cache_key]
         if cached_url:
             print(f"  ✓ Cache hit for {artist} - {song_name}")
-        return cached_url
-    
+            return cached_url
+
     # Not in cache, query iTunes
     query = f"{artist} {song_name}"
     retry_count = 0
@@ -83,24 +83,24 @@ def get_itunes_preview_by_artist_song(artist, song_name, max_retries=3):
                     if song["trackName"].lower() == song_name.lower():
                         preview_url = song.get("previewUrl")
                         break
-                
+
                 # If no exact match, return first result
                 if not preview_url:
                     preview_url = data["results"][0].get("previewUrl")
-            
+
             # Cache the result (even if None)
             _itunes_cache[cache_key] = preview_url
             save_persistent_cache()
-            
+
             return preview_url
-            
+
         except requests.exceptions.RequestException as e:
             print(f"  ⚠ iTunes lookup failed: {e}")
             # Cache the failure (None)
             _itunes_cache[cache_key] = None
             save_persistent_cache()
             return None
-    
+
     print(f"  ⚠ Max retries exceeded for iTunes lookup")
     # Cache the failure
     _itunes_cache[cache_key] = None
@@ -111,7 +111,7 @@ def get_itunes_preview_by_artist_song(artist, song_name, max_retries=3):
 def resolve_preview_url(artist, song_name):
     """
     Resolve preview URL by artist + song name with rate limit handling and caching
-    
+
     Returns: preview_url or None
     """
     return get_itunes_preview_by_artist_song(artist, song_name)

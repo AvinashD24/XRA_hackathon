@@ -1,6 +1,7 @@
 import requests
 import pandas as pd
 import time
+import os
 from data_process.spotify_api_auth import access_token
 from data_process.itunes_preview_resolver import resolve_preview_url, load_persistent_cache
 
@@ -9,6 +10,7 @@ def fetch_track_metadata(token, track_ids):
     """Fetch track metadata from Spotify"""
     headers = {"Authorization": f"Bearer {token}"}
     results = {}
+    queried_count = 0
 
     for i in range(0, len(track_ids), 50):
         batch = track_ids[i:i+50]
@@ -28,7 +30,7 @@ def fetch_track_metadata(token, track_ids):
             track_id = t["id"]
             artists = ", ".join([a["name"] for a in t["artists"]])
             preview_url = t["preview_url"]
-            
+
             # Try iTunes fallback if Spotify preview is None
             if not preview_url:
                 print(f"  → Spotify preview missing for {t['name']}, trying iTunes...")
@@ -50,6 +52,7 @@ def fetch_track_metadata(token, track_ids):
 
             time.sleep(0.05)  # Small delay between queries
 
+    print(f"\n✔ Total iTunes queries made: {queried_count}")
     return results
 
 df = pd.read_csv("data/reduced_dim.csv")
