@@ -2,8 +2,8 @@ import requests
 import pandas as pd
 import time
 import os
-from data_process.spotify_api_auth import access_token
-from data_process.itunes_preview_resolver import resolve_preview_url, load_persistent_cache
+from spotify_api_auth import access_token
+from itunes_preview_resolver import resolve_preview_url, load_persistent_cache
 
 
 def fetch_track_metadata(token, track_ids):
