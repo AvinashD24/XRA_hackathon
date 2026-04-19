@@ -30,7 +30,7 @@ struct SongInfoCard: View {
             .frame(width: 72, height: 72)
             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text(song.title)
                     .font(.headline)
                     .lineLimit(1)
@@ -62,7 +62,7 @@ struct SongInfoCard: View {
                             }
                         }
                     } label: {
-                        Label("Add", systemImage: "plus")
+                        Label("Add to Playlist", systemImage: "plus")
                     }
                     .menuStyle(.button)
                 }
@@ -77,8 +77,8 @@ struct SongInfoCard: View {
             }
             .buttonBorderShape(.circle)
         }
-        .padding(16)
-        .frame(width: 380)
+        .padding(18)
+        .frame(width: 500)
         .glassBackgroundEffect()
     }
 }

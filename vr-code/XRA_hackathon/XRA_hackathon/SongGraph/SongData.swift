@@ -36,6 +36,9 @@ nonisolated enum SongLoader {
         return parsed
     }
 
+    /// Handles two CSV layouts:
+    /// - 8 columns: track_id, x, y, z, title, artist, preview_url, photo_url
+    /// - 9 columns: track_id, x, y, z, title, artist, isrc, preview_url, photo_url
     nonisolated private static func parseRow(_ line: String, bundle: Bundle) -> SongData? {
         let fields = parseCSVRow(line)
         guard fields.count >= 8 else { return nil }
@@ -49,8 +52,18 @@ nonisolated enum SongLoader {
         let artist = fields[5]
         guard !trackId.isEmpty else { return nil }
 
-        let rawPlayback = fields[6].trimmingCharacters(in: .whitespaces)
-        let rawPhoto = fields[7].trimmingCharacters(in: .whitespaces)
+        // Auto-detect format: 9+ columns means ISRC is at index 6
+        let rawPlayback: String
+        let rawPhoto: String
+        if fields.count >= 9 {
+            // 9-col: ..., isrc, preview_url, photo_url
+            rawPlayback = fields[7].trimmingCharacters(in: .whitespaces)
+            rawPhoto = fields[8].trimmingCharacters(in: .whitespaces)
+        } else {
+            // 8-col: ..., preview_url, photo_url
+            rawPlayback = fields[6].trimmingCharacters(in: .whitespaces)
+            rawPhoto = fields[7].trimmingCharacters(in: .whitespaces)
+        }
 
         return SongData(
             id: trackId,
@@ -145,12 +158,11 @@ final class SongStore {
 
     func loadSample() {
         print("SongStore: starting load. Bundle path = \(Bundle.main.bundlePath)")
-        if let url = Bundle.main.url(forResource: "final_data", withExtension: "csv") {
-            print("SongStore: found final_data.csv at \(url.path)")
-        } else {
-            print("SongStore: final_data.csv NOT FOUND in bundle")
+        // Prefer final_data2 (3387 songs, all with previews)
+        songs = SongLoader.load(from: "final_data2")
+        if songs.isEmpty {
+            songs = SongLoader.load(from: "final_data")
         }
-        songs = SongLoader.load(from: "final_data")
         if songs.isEmpty {
             songs = SongLoader.load(from: "songs_sample")
         }

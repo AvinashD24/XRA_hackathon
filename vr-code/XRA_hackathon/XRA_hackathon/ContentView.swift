@@ -16,6 +16,11 @@ struct ContentView: View {
 
     @State private var isImmersiveOpen = false
 
+    /// Number of songs that have a working preview URL
+    private var previewableCount: Int {
+        songStore.songs.filter { $0.playbackURL != nil }.count
+    }
+
     var body: some View {
         @Bindable var appSettings = appSettings
 
@@ -43,9 +48,18 @@ struct ContentView: View {
                 }
                 .disabled(isImmersiveOpen)
 
-                Text("Show up to \(min(appSettings.maxVisibleSphereCount, songStore.songs.count)) spheres in Vision Pro. Lower counts are safer if the immersive space is crashing.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                Toggle("Only show songs with previews", isOn: $appSettings.onlyShowPreviewable)
+                    .disabled(isImmersiveOpen)
+
+                if appSettings.onlyShowPreviewable {
+                    Text("\(previewableCount) of \(songStore.songs.count) songs have playable previews.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("Show up to \(min(appSettings.maxVisibleSphereCount, songStore.songs.count)) spheres in Vision Pro.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
             }
             .padding(20)
             .frame(maxWidth: 520, alignment: .leading)
