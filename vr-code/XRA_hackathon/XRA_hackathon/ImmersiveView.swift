@@ -9,6 +9,7 @@ import simd
 
 struct ImmersiveView: View {
 
+    @Environment(AppSettings.self) private var appSettings
     @Environment(SongStore.self) private var songStore
     @Environment(PlaylistStore.self) private var playlistStore
     @Environment(AudioPlaybackService.self) private var audioService
@@ -24,9 +25,13 @@ struct ImmersiveView: View {
     @State private var confirmAnchor = Entity()
     @State private var resetAnchor = Entity()
 
+    private var visibleSongs: [SongData] {
+        Array(songStore.songs.prefix(appSettings.maxVisibleSphereCount))
+    }
+
     private var selectedSong: SongData? {
         guard let id = selectedSongId else { return nil }
-        return songStore.songs.first { $0.id == id }
+        return visibleSongs.first { $0.id == id }
     }
 
     var body: some View {
@@ -39,22 +44,13 @@ struct ImmersiveView: View {
             content.add(confirmAnchor)
             content.add(resetAnchor)
 
-            print("ImmersiveView: creating \(songStore.songs.count) sphere entities")
-            for song in songStore.songs {
+            print("ImmersiveView: creating \(visibleSongs.count) sphere entities")
+            for song in visibleSongs {
                 let entity = SongSphereEntity.make(for: song)
                 rootEntity.addChild(entity)
                 songEntities[song.id] = entity
             }
             print("ImmersiveView: rootEntity has \(rootEntity.children.count) children")
-
-            // Debug marker: bright red cube 1m in front of user, 1.4m up.
-            // If you see this but no spheres, the scene is rendering.
-            let debugMesh = MeshResource.generateBox(size: 0.15)
-            let debugMat = UnlitMaterial(color: .red)
-            let debugEntity = ModelEntity(mesh: debugMesh, materials: [debugMat])
-            debugEntity.position = SIMD3<Float>(0, 1.4, -1.0)
-            content.add(debugEntity)
-            print("ImmersiveView: added debug marker at (0, 1.4, -1.0)")
 
             let sel = SongSphereEntity.makeSelectionSphere()
             sel.isEnabled = false
@@ -112,13 +108,13 @@ struct ImmersiveView: View {
                 .targetedToAnyEntity()
                 .onEnded { value in
                     let name = value.entity.name
-                    if !name.isEmpty, songStore.songs.contains(where: { $0.id == name }) {
+                    if !name.isEmpty, visibleSongs.contains(where: { $0.id == name }) {
                         selectedSongId = name
                     }
                 }
         )
         .task {
-            handTracking.updateSongList(songStore.songs)
+            handTracking.updateSongList(visibleSongs)
             await handTracking.start()
         }
     }
@@ -171,7 +167,7 @@ struct ImmersiveView: View {
         }
 
         // Highlight selected songs
-        for song in songStore.songs {
+        for song in visibleSongs {
             guard let entity = songEntities[song.id] else { continue }
             let isHighlighted = handTracking.selectedSongIds.contains(song.id)
             let isPlaying = audioService.currentSong?.id == song.id && audioService.isPlaying
@@ -183,7 +179,7 @@ struct ImmersiveView: View {
         audioService.stop()
         selectedSongId = nil
         handTracking.dismissSelection()
-        for song in songStore.songs {
+        for song in visibleSongs {
             if let entity = songEntities[song.id] {
                 entity.position = song.position
             }
