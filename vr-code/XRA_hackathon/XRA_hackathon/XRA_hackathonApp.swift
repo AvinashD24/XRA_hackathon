@@ -10,6 +10,7 @@ import SwiftUI
 @main
 struct XRA_hackathonApp: App {
 
+    @State private var appSettings = AppSettings()
     @State private var songStore = SongStore()
     @State private var playlistStore = PlaylistStore()
     @State private var audioService = AudioPlaybackService()
@@ -18,6 +19,7 @@ struct XRA_hackathonApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environment(appSettings)
                 .environment(songStore)
                 .environment(playlistStore)
                 .environment(audioService)
@@ -30,6 +32,7 @@ struct XRA_hackathonApp: App {
 
         ImmersiveSpace(id: "SongGraph") {
             ImmersiveView()
+                .environment(appSettings)
                 .environment(songStore)
                 .environment(playlistStore)
                 .environment(audioService)

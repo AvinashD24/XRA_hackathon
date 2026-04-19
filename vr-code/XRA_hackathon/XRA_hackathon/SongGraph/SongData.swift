@@ -31,12 +31,12 @@ nonisolated enum SongLoader {
         guard !lines.isEmpty else { return [] }
         lines.removeFirst()
 
-        let parsed = lines.compactMap { SongLoader.parseRow($0) }
+        let parsed = lines.compactMap { SongLoader.parseRow($0, bundle: bundle) }
         print("SongLoader: loaded \(parsed.count) songs from \(csvName).csv")
         return parsed
     }
 
-    nonisolated private static func parseRow(_ line: String) -> SongData? {
+    nonisolated private static func parseRow(_ line: String, bundle: Bundle) -> SongData? {
         let fields = parseCSVRow(line)
         guard fields.count >= 8 else { return nil }
 
@@ -57,9 +57,41 @@ nonisolated enum SongLoader {
             position: SIMD3<Float>(x, y, z),
             title: title,
             artist: artist,
-            playbackURL: rawPlayback.isEmpty ? nil : URL(string: rawPlayback),
-            photoURL: rawPhoto.isEmpty ? nil : URL(string: rawPhoto)
+            playbackURL: resolveResourceURL(from: rawPlayback, bundle: bundle),
+            photoURL: resolveResourceURL(from: rawPhoto, bundle: bundle)
         )
+    }
+
+    nonisolated private static func resolveResourceURL(from rawValue: String, bundle: Bundle) -> URL? {
+        let value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty else { return nil }
+
+        if let remoteURL = URL(string: value), remoteURL.scheme != nil {
+            return remoteURL
+        }
+
+        if value.hasPrefix("/") {
+            return URL(fileURLWithPath: value)
+        }
+
+        let nsValue = value as NSString
+        let resource = nsValue.deletingPathExtension
+        let ext = nsValue.pathExtension
+
+        if !resource.isEmpty,
+           !ext.isEmpty,
+           let bundledURL = bundle.url(forResource: resource, withExtension: ext) {
+            return bundledURL
+        }
+
+        if let resourceURL = bundle.resourceURL {
+            let candidate = resourceURL.appendingPathComponent(value)
+            if FileManager.default.fileExists(atPath: candidate.path) {
+                return candidate
+            }
+        }
+
+        return URL(fileURLWithPath: value)
     }
 
     /// Minimal RFC-4180-style CSV field splitter: handles quoted fields
@@ -121,6 +153,9 @@ final class SongStore {
         songs = SongLoader.load(from: "final_data")
         if songs.isEmpty {
             songs = SongLoader.load(from: "songs_sample")
+        }
+        songs.sort { lhs, rhs in
+            simd_length_squared(lhs.position) < simd_length_squared(rhs.position)
         }
         print("SongStore: finished load. songs.count = \(songs.count)")
     }
