@@ -54,7 +54,7 @@ def get_itunes_preview_by_artist_song(artist, song_name, max_retries=3):
         cached_url = _itunes_cache[cache_key]
         if cached_url:
             print(f"  ✓ Cache hit for {artist} - {song_name}")
-        return cached_url
+            return cached_url
 
     # Not in cache, query iTunes
     query = f"{artist} {song_name}"
