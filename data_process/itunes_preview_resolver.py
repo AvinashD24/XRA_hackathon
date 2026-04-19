@@ -7,11 +7,13 @@ def get_itunes_preview_by_isrc(isrc):
     try:
         url = f"https://itunes.apple.com/search?term={isrc}&entity=song&limit=1"
         response = requests.get(url, timeout=5)
+        response.raise_for_status()
         data = response.json()
 
         if data.get("resultCount", 0) > 0:
             song = data["results"][0]
             return song.get("previewUrl")
+        time.sleep(0.5)
     except Exception as e:
         print(f"  ⚠ ISRC lookup failed: {e}")
     return None
@@ -23,6 +25,7 @@ def get_itunes_preview_by_artist_song(artist, song_name):
         query = f"{artist} {song_name}"
         url = f"https://itunes.apple.com/search?term={query}&entity=song&limit=5"
         response = requests.get(url, timeout=5)
+        response.raise_for_status()
         data = response.json()
 
         if data.get("resultCount", 0) > 0:
@@ -30,7 +33,7 @@ def get_itunes_preview_by_artist_song(artist, song_name):
             for song in data["results"]:
                 if song["trackName"].lower() == song_name.lower():
                     return song.get("previewUrl")
-            
+            time.sleep(0.5)
             # If no exact match, return first result
             return data["results"][0].get("previewUrl")
     except Exception as e:
@@ -39,11 +42,6 @@ def get_itunes_preview_by_artist_song(artist, song_name):
 
 
 def resolve_preview_url(isrc, artist, song_name):
-    """
-    Smart lookup: ISRC first, then fallback to artist + song
-    
-    Returns: (preview_url, source)
-    """
     # Try ISRC first
     preview = get_itunes_preview_by_isrc(isrc)
     if preview:

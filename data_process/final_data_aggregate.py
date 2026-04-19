@@ -32,15 +32,11 @@ def fetch_track_metadata(token, track_ids):
 
             # Try iTunes fallback if Spotify preview is None
             if not preview_url and isrc:
-                print(f"  → Spotify preview missing for {t['name']}, trying iTunes...")
                 preview_url, source = resolve_preview_url(isrc, artists, t["name"])
-                if preview_url:
-                    print(f"    ✔ Found via {source}")
             
             results[track_id] = {
                 "title": t["name"],
                 "artists": artists,
-                "isrc": isrc,
                 "preview_url": preview_url,
                 "album_image": (
                     t["album"]["images"][0]["url"]
