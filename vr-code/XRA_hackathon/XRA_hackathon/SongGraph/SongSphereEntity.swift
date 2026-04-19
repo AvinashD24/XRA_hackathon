@@ -64,6 +64,18 @@ enum SongSphereEntity {
         return entity
     }
 
+    /// Creates a small square plane used to show album art above the hovered sphere.
+    /// A single instance is reused – its material texture is swapped per-song.
+    static func makeAlbumBillboard() -> ModelEntity {
+        let size: Float = baseRadius * 3.0 // slightly larger than the sphere
+        let mesh = MeshResource.generatePlane(width: size, height: size, cornerRadius: size * 0.1)
+        var mat = UnlitMaterial()
+        mat.color = .init(tint: .gray)
+        let entity = ModelEntity(mesh: mesh, materials: [mat])
+        entity.name = "albumBillboard"
+        return entity
+    }
+
     // MARK: - Material helpers
 
     /// Creates a shiny, translucent PhysicallyBasedMaterial.

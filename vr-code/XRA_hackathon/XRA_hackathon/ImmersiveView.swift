@@ -2,13 +2,11 @@
 //  ImmersiveView.swift
 //  XRA_hackathon
 //
-//  Major features:
-//  • Head-anchored playlist panel, reset button, and now-playing widget
-//    (via WorldTrackingProvider device anchor) so they always float near the user.
-//  • Drag gesture on the root entity lets the user pan/fly through the data cloud.
-//  • Gaze-based hover detection shows song info on looked-at spheres.
-//  • Performance: batched highlight updates limited to nearby spheres;
-//    collision shapes & input targets only enabled on close spheres.
+//  • Head-anchored playlist and now-playing panels (lower, tilted, centered).
+//  • Both panels are draggable so the user can reposition them.
+//  • Drag gesture on spheres lets the user pan/fly through the data cloud.
+//  • Gaze-based hover shows album art billboard on the looked-at sphere.
+//  • No reset button.
 
 import SwiftUI
 import RealityKit
@@ -30,16 +28,18 @@ struct ImmersiveView: View {
     @State private var selectionSphere: ModelEntity?
     @State private var selectionRingEntity: ModelEntity?
 
-    // Head-anchored UI anchors
+    // Head-anchored UI anchor
     @State private var headAnchor = Entity()
-
-    // Wrist anchors (used when hands are tracked)
-    @State private var leftWristAnchor = Entity()
 
     // Info card & hover label
     @State private var infoCardAnchor = Entity()
     @State private var hoverLabelAnchor = Entity()
     @State private var confirmAnchor = Entity()
+
+    // Album art billboard entity (a single plane placed at hovered sphere)
+    @State private var albumBillboard: ModelEntity?
+    @State private var currentBillboardSongId: String?
+    @State private var albumTextureCache: [String: TextureResource] = [:]
 
     // Drag state for world navigation
     @State private var dragStartRootPosition: SIMD3<Float> = .zero
@@ -69,16 +69,14 @@ struct ImmersiveView: View {
 
     var body: some View {
         RealityView { content, attachments in
-            // Root holds all song spheres; user drags this to navigate
             rootEntity.position = SIMD3<Float>(0, 1.4, -1.5)
             content.add(rootEntity)
             content.add(headAnchor)
-            content.add(leftWristAnchor)
             content.add(infoCardAnchor)
             content.add(confirmAnchor)
             content.add(hoverLabelAnchor)
 
-            // ── Create sphere entities (batched) ──
+            // ── Create sphere entities ──
             let songs = visibleSongs
             print("ImmersiveView: creating \(songs.count) sphere entities")
             for song in songs {
@@ -100,24 +98,27 @@ struct ImmersiveView: View {
             rootEntity.addChild(ring)
             selectionRingEntity = ring
 
+            // Album art billboard: a single reusable plane entity
+            let billboard = SongSphereEntity.makeAlbumBillboard()
+            billboard.isEnabled = false
+            rootEntity.addChild(billboard)
+            albumBillboard = billboard
+
             // ── Attach SwiftUI overlays ──
             if let info = attachments.entity(for: "infoCard") {
                 infoCardAnchor.addChild(info)
             }
             if let np = attachments.entity(for: "nowPlaying") {
                 headAnchor.addChild(np)
-                // Position relative to head: slightly left and below gaze
-                np.position = SIMD3<Float>(-0.35, -0.18, -0.7)
+                // Lower, centered, tilted up so user can glance down
+                np.position = SIMD3<Float>(-0.12, -0.32, -0.55)
+                np.orientation = simd_quatf(angle: -0.35, axis: SIMD3<Float>(1, 0, 0))
             }
             if let pl = attachments.entity(for: "playlistPanel") {
                 headAnchor.addChild(pl)
-                // Position relative to head: slightly to the right, within FOV
-                pl.position = SIMD3<Float>(0.25, -0.05, -0.7)
-            }
-            if let rb = attachments.entity(for: "resetButton") {
-                headAnchor.addChild(rb)
-                // Below and center
-                rb.position = SIMD3<Float>(0, -0.35, -0.7)
+                // Slightly right of center, low, tilted up
+                pl.position = SIMD3<Float>(0.12, -0.32, -0.55)
+                pl.orientation = simd_quatf(angle: -0.35, axis: SIMD3<Float>(1, 0, 0))
             }
             if let cb = attachments.entity(for: "confirmPlaylist") {
                 confirmAnchor.addChild(cb)
@@ -146,29 +147,22 @@ struct ImmersiveView: View {
                 }
             }
 
-            // ── Now-playing widget (head-anchored) ──
+            // ── Now-playing widget (head-anchored, draggable) ──
             Attachment(id: "nowPlaying") {
                 NowPlayingView()
             }
 
-            // ── Playlist panel (head-anchored, always visible) ──
+            // ── Playlist panel (head-anchored, draggable) ──
             Attachment(id: "playlistPanel") {
                 PlaylistArmView()
             }
 
-            // ── Confirm playlist creation (from hand selection sphere) ──
+            // ── Confirm playlist creation ──
             Attachment(id: "confirmPlaylist") {
                 ConfirmPlaylistView {
                     let selected = songStore.songs.filter { handTracking.selectedSongIds.contains($0.id) }
                     playlistStore.createPlaylist(from: selected)
                     handTracking.dismissSelection()
-                }
-            }
-
-            // ── Reset button (head-anchored) ──
-            Attachment(id: "resetButton") {
-                ResetButtonView {
-                    resetScene()
                 }
             }
         }
@@ -183,11 +177,26 @@ struct ImmersiveView: View {
                     }
                 }
         )
-        // ── Drag to navigate through the world ──
+        // ── Drag to navigate through the world or reposition panels ──
         .simultaneousGesture(
             DragGesture()
                 .targetedToAnyEntity()
                 .onChanged { value in
+                    let entity = value.entity
+
+                    // If the user drags a head-anchored panel, reposition it locally
+                    if entity.parent == headAnchor || entity.parent?.parent == headAnchor {
+                        let panelEntity = (entity.parent == headAnchor) ? entity : entity.parent!
+                        let translation3D = value.convert(value.translation3D, from: .local, to: .scene)
+                        panelEntity.position = panelEntity.position + SIMD3<Float>(
+                            Float(translation3D.x) * 0.002,
+                            Float(translation3D.y) * 0.002,
+                            Float(translation3D.z) * 0.002
+                        )
+                        return
+                    }
+
+                    // Otherwise drag the whole world
                     let translation3D = value.convert(value.translation3D, from: .local, to: .scene)
                     rootEntity.position = dragStartRootPosition + SIMD3<Float>(
                         Float(translation3D.x),
@@ -211,9 +220,6 @@ struct ImmersiveView: View {
 
     // MARK: - Device Anchor Polling (gaze hover + head-anchored UI)
 
-    /// Polls the device anchor at ~20 Hz to:
-    /// 1. Update `headAnchor` so playlist/reset/now-playing float near the user.
-    /// 2. Raycast from the device to detect which sphere the user is gazing at.
     @MainActor
     private func pollDeviceAnchor() async {
         let worldTracking = WorldTrackingProvider()
@@ -241,10 +247,10 @@ struct ImmersiveView: View {
             devicePosition = pos
             deviceForward = forward
 
-            // ── Update head anchor: keep it at the device position, facing forward ──
+            // Update head anchor to follow device
             headAnchor.transform = Transform(matrix: m)
 
-            // ── Gaze raycast to find hovered sphere ──
+            // Gaze raycast to find hovered sphere
             var bestId: String?
             var bestProj: Float = Float.greatestFiniteMagnitude
             let hitThreshold: Float = 0.10
@@ -261,20 +267,69 @@ struct ImmersiveView: View {
                     bestId = song.id
                 }
             }
-            hoveredSongId = bestId
+
+            let newHoveredId = bestId
+            if newHoveredId != hoveredSongId {
+                hoveredSongId = newHoveredId
+                // Load album art for the new hovered sphere (async, off main)
+                if let id = newHoveredId, id != currentBillboardSongId,
+                   let song = visibleSongs.first(where: { $0.id == id }),
+                   let photoURL = song.photoURL {
+                    loadAlbumTexture(songId: id, url: photoURL)
+                }
+            }
         }
+    }
+
+    // MARK: - Album Art Billboard
+
+    /// Asynchronously loads album art texture and applies it to the billboard entity.
+    /// Uses a simple in-memory cache so we don't reload the same image.
+    private func loadAlbumTexture(songId: String, url: URL) {
+        // Check cache first
+        if let cached = albumTextureCache[songId] {
+            applyBillboardTexture(cached, songId: songId)
+            return
+        }
+
+        Task.detached(priority: .utility) {
+            do {
+                let texture = try await TextureResource(contentsOf: url)
+                await MainActor.run {
+                    // Cache it (limit cache to 30 entries to save memory)
+                    if albumTextureCache.count > 30 {
+                        albumTextureCache.removeAll()
+                    }
+                    albumTextureCache[songId] = texture
+                    applyBillboardTexture(texture, songId: songId)
+                }
+            } catch {
+                // Silently fail — the hover label still shows info
+            }
+        }
+    }
+
+    @MainActor
+    private func applyBillboardTexture(_ texture: TextureResource, songId: String) {
+        guard let billboard = albumBillboard else { return }
+        // Only apply if this song is still the hovered one
+        guard hoveredSongId == songId else { return }
+
+        var mat = UnlitMaterial()
+        mat.color = .init(texture: .init(texture))
+        billboard.model?.materials = [mat]
+        currentBillboardSongId = songId
     }
 
     // MARK: - Scene State Update
 
     private func updateSceneState() {
-        // ── Info card: place above selected sphere (world space) ──
+        // ── Info card: place above selected sphere ──
         if let id = selectedSongId, let entity = songEntities[id] {
             let sphereWorldPos = rootEntity.convert(position: entity.position, to: nil)
             infoCardAnchor.position = sphereWorldPos + SIMD3<Float>(0, 0.15, 0)
             infoCardAnchor.isEnabled = true
 
-            // Selection ring follows selected sphere
             if let ring = selectionRingEntity {
                 ring.position = entity.position
                 ring.isEnabled = true
@@ -286,6 +341,22 @@ struct ImmersiveView: View {
             selectionRingEntity?.isEnabled = false
         }
 
+        // ── Album art billboard follows the hovered sphere ──
+        if let billboard = albumBillboard {
+            if let id = hoveredSongId, let entity = songEntities[id] {
+                billboard.position = entity.position + SIMD3<Float>(0, SongSphereEntity.baseRadius * 1.8, 0)
+                billboard.isEnabled = true
+                // Billboard always faces the user (camera)
+                let billboardWorld = rootEntity.convert(position: billboard.position, to: nil)
+                let toUser = simd_normalize(devicePosition - billboardWorld)
+                let yaw = atan2(toUser.x, toUser.z)
+                billboard.orientation = simd_quatf(angle: yaw, axis: SIMD3<Float>(0, 1, 0))
+            } else {
+                billboard.isEnabled = false
+                currentBillboardSongId = nil
+            }
+        }
+
         // ── Hover label follows the hovered sphere ──
         if let id = hoveredSongId, id != selectedSongId, let entity = songEntities[id] {
             let sphereWorldPos = rootEntity.convert(position: entity.position, to: nil)
@@ -293,15 +364,6 @@ struct ImmersiveView: View {
             hoverLabelAnchor.isEnabled = true
         } else {
             hoverLabelAnchor.isEnabled = false
-        }
-
-        // ── Wrist attachment for now-playing (fallback, head-anchor is primary) ──
-        if let lt = handTracking.leftWristTransform {
-            leftWristAnchor.transform = lt
-            leftWristAnchor.transform.translation += SIMD3<Float>(0, 0.08, 0)
-            leftWristAnchor.isEnabled = true
-        } else {
-            leftWristAnchor.isEnabled = false
         }
 
         // ── Hand-pinch selection sphere ──
@@ -326,7 +388,7 @@ struct ImmersiveView: View {
             }
         }
 
-        // ── Highlight updates (only update spheres whose state changed) ──
+        // ── Highlight updates ──
         let playingId = (audioService.isPlaying ? audioService.currentSong?.id : nil)
         let selId = selectedSongId
         let hovId = hoveredSongId
@@ -342,22 +404,6 @@ struct ImmersiveView: View {
                 selected: selId == song.id,
                 hovered: hovId == song.id
             )
-        }
-    }
-
-    // MARK: - Reset
-
-    private func resetScene() {
-        audioService.stop()
-        selectedSongId = nil
-        hoveredSongId = nil
-        handTracking.dismissSelection()
-        rootEntity.position = SIMD3<Float>(0, 1.4, -1.5)
-        dragStartRootPosition = rootEntity.position
-        for song in visibleSongs {
-            if let entity = songEntities[song.id] {
-                entity.position = song.position
-            }
         }
     }
 }

@@ -158,10 +158,10 @@ final class SongStore {
 
     func loadSample() {
         print("SongStore: starting load. Bundle path = \(Bundle.main.bundlePath)")
-        // Prefer final_data2 (3387 songs, all with previews)
-        songs = SongLoader.load(from: "final_data2")
+        // Prefer final_data (fewer songs, similar preview coverage)
+        songs = SongLoader.load(from: "final_data")
         if songs.isEmpty {
-            songs = SongLoader.load(from: "final_data")
+            songs = SongLoader.load(from: "final_data2")
         }
         if songs.isEmpty {
             songs = SongLoader.load(from: "songs_sample")
